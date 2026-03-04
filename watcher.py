@@ -13,7 +13,7 @@ class YAMLHandler(FileSystemEventHandler):
 
 		reload_user_jobs(user_id)
 
-def start_watcher():
+def start_watcher(target_dir):
 	observer = Observer()
-	observer.schedule(YAMLHandler(), path="storage", recursive=False)
+	observer.schedule(YAMLHandler(), path=target_dir, recursive=False)
 	observer.start()

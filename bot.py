@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 from telegram import (
 	Update, InlineKeyboardButton, InlineKeyboardMarkup
 )
@@ -15,6 +16,12 @@ from scheduler import add_job, remove_job
 from storage import load_user_yaml, save_user_yaml
 from watcher import start_watcher
 from common import scheduled_send, TOKEN, ALLOWED_USERS
+
+if len(sys.argv) != 3:
+	print('-----\nUsage: bot <config.yaml> <storage_dir>\n-----')
+	sys.exit(1)
+CONFIG_PATH = sys.argv[1]
+STORAGE_DIR = sys.argv[2]
 
 # Conversation states
 ASK_NAME, ASK_CRON, ASK_MESSAGE = range(3)
@@ -52,9 +59,10 @@ def validate_cron(expr: str) -> bool:
 
 # /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-	print(ALLOWED_USERS)
 	if ALLOWED_USERS != None and (update.effective_user.id not in ALLOWED_USERS):
+		print(f"** Block user: [{update.effective_user.id}]")
 		return
+	print(f"User [{update.effective_user.id}] start.")
 	await update.message.reply_text(
 		"Hi~👋🏻 This is YUI, your time & task assistant !",
 	)
@@ -84,9 +92,9 @@ async def ask_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	cron = context.user_data["cron"]
 	msg = update.message.text
 
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 	data[name] = {"cron": cron, "msg": msg, "enabled": True}
-	save_user_yaml(user_id, data)
+	save_user_yaml(STORAGE_DIR, user_id, data)
 
 	add_job(user_id, name, cron, scheduled_send, msg)
 
@@ -96,7 +104,7 @@ async def ask_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /list
 async def list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user_id = update.effective_user.id
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 
 	if not data:
 		await update.message.reply_text("No task yet...")
@@ -112,7 +120,7 @@ async def list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /del
 async def del_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user_id = update.effective_user.id
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 
 	if not data:
 		await update.message.reply_text("Nothing can be deleted...")
@@ -132,9 +140,9 @@ async def del_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user_id = query.from_user.id
 	name = query.data
 
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 	data.pop(name, None)
-	save_user_yaml(user_id, data)
+	save_user_yaml(STORAGE_DIR, user_id, data)
 
 	remove_job(user_id, name)
 
@@ -144,7 +152,7 @@ async def del_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /turnon
 async def turnon_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user_id = update.effective_user.id
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 
 	off_tasks = [name for name, info in data.items() if not info.get("enabled", True)]
 	if not off_tasks:
@@ -165,11 +173,11 @@ async def turnon_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user_id = query.from_user.id
 	name = query.data
 
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 	task = data[name]
 
 	task["enabled"] = True
-	save_user_yaml(user_id, data)
+	save_user_yaml(STORAGE_DIR, user_id, data)
 
 	add_job(user_id, name, task["cron"], scheduled_send, task["msg"])
 
@@ -179,7 +187,7 @@ async def turnon_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /turnoff
 async def turnoff_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user_id = update.effective_user.id
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 
 	on_tasks = [name for name, info in data.items() if info.get("enabled", True)]
 	if not on_tasks:
@@ -200,11 +208,11 @@ async def turnoff_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user_id = query.from_user.id
 	name = query.data
 
-	data = load_user_yaml(user_id)
+	data = load_user_yaml(STORAGE_DIR, user_id)
 	task = data[name]
 
 	task["enabled"] = False
-	save_user_yaml(user_id, data)
+	save_user_yaml(STORAGE_DIR, user_id, data)
 
 	remove_job(user_id, name)
 
@@ -217,13 +225,13 @@ async def restore_jobs(app):
 		if not filename.endswith(".yaml"):
 			continue
 		user_id = filename.replace(".yaml", "")
-		data = load_user_yaml(user_id)
+		data = load_user_yaml(STORAGE_DIR, user_id)
 		for name, info in data.items():
 			if info.get("enabled", True):
 				add_job(user_id, name, info["cron"], scheduled_send, info["msg"])
 
 def main():
-	start_watcher()
+	start_watcher(STORAGE_DIR)
 	app = ApplicationBuilder().token(TOKEN).build()
 
 	# Recover tasks from config file
