@@ -4,7 +4,11 @@ from pytz import timezone
 
 DEFAULT_TZ = "Asia/Tokyo"
 
-scheduler = AsyncIOScheduler(timezone=timezone(DEFAULT_TZ))
+scheduler = AsyncIOScheduler(timezone=timezone(DEFAULT_TZ),
+							job_defaults={
+								"misfire_grace_time": 20,
+								"coalesce": False
+							})
 scheduler.start()
 
 def parse_cron(expr: str, tz: str):
