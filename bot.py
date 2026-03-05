@@ -80,8 +80,8 @@ async def ask_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ask_cron(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	cron = update.message.text.strip()
 	if not validate_cron(cron):
-		await update.message.reply_text("** Bad time pattern. Please try again.")
-		return ASK_CRON
+		await update.message.reply_text("** Bad time pattern. Exit.")
+		return 
 	context.user_data["cron"] = cron
 	await update.message.reply_text("What message will be sent?")
 	return ASK_MESSAGE
@@ -245,25 +245,29 @@ def main():
 			ASK_CRON: [MessageHandler(filters.TEXT, ask_cron)],
 			ASK_MESSAGE: [MessageHandler(filters.TEXT, ask_message)],
 		},
-		fallbacks=[]
+		fallbacks=[],
+		allow_reentry=True
 	)
 
 	del_conv = ConversationHandler(
 		entry_points=[CommandHandler("del", del_cmd)],
 		states={DEL_SELECT: [CallbackQueryHandler(del_select)]},
-		fallbacks=[]
+		fallbacks=[],
+		allow_reentry=True
 	)
 
 	turnon_conv = ConversationHandler(
 		entry_points=[CommandHandler("turnon", turnon_cmd)],
 		states={TURN_SELECT_ON: [CallbackQueryHandler(turnon_select)]},
-		fallbacks=[]
+		fallbacks=[],
+		allow_reentry=True
 	)
 
 	turnoff_conv = ConversationHandler(
 		entry_points=[CommandHandler("turnoff", turnoff_cmd)],
 		states={TURN_SELECT_OFF: [CallbackQueryHandler(turnoff_select)]},
-		fallbacks=[]
+		fallbacks=[],
+		allow_reentry=True
 	)
 
 	# --- Normal command handlers ---
