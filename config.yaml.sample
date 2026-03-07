@@ -1,7 +1,7 @@
 token: YOUR_BOT_TOKEN
 storage: TASK_STORAGE_DIR
-timezone: "Asia/Tokyo"
-logfile: "bot.log"
+timezone: 'Asia/Tokyo'
+logfile: 'bot.log'
 loglevel: 0
 allowed:
   - ALLOWED_USER_ID
