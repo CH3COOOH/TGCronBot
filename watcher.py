@@ -4,12 +4,13 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from scheduler import Scheduler
 from localfile import FileHandler
+from logger import Log
 
 class YAMLHandler(FileSystemEventHandler):
 	def __init__(self, fh: FileHandler, sch: Scheduler):
 		self.fh = fh
 		self.sch = sch
-		self.observer = Observer()
+		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
 	
 	async def __scheduled_send(self, user_id, message):
 		bot = Bot(self.fh.get_token())
@@ -22,6 +23,7 @@ class YAMLHandler(FileSystemEventHandler):
 				self.sch.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"])
 			else:
 				self.sch.remove_job(user_id, name)
+		self.log.print(msg=f"User profile [{user_id}] reloaded.", level=1)
 
 	def on_modified(self, event):
 		if not event.src_path.endswith(".yaml"):

@@ -7,6 +7,7 @@ from telegram.error import TimedOut
 
 from localfile import FileHandler
 from scheduler import validate_cron, Scheduler
+from logger import Log
 
 class Actions:
 	def __init__(self, fh: FileHandler, sch: Scheduler):
@@ -20,15 +21,16 @@ class Actions:
 		self.TURN_SELECT_OFF = 21
 		self.ALLOWED_USERS = self.fh.get_allowed_users()
 		self.bot = Bot(self.fh.get_token())
+		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
 	
 	def dump_token(self):
 		return self.fh.get_token()
 	
 	async def scheduled_send(self, user_id, message):
-		# bot = Bot(self.fh.get_token())
 		try:
 			await self.bot.send_message(chat_id=user_id, text=message)
 		except TimedOut:
+			self.log.print(msg="Actions::scheduled_send Timeout. Retry for once...", level=3, write=True)
 			await asyncio.sleep(1.5)
 			await self.bot.send_message(chat_id=user_id, text=message)
 
@@ -57,7 +59,7 @@ class Actions:
 		cron = update.message.text.strip()
 		if not validate_cron(cron):
 			await update.message.reply_text("** Bad time pattern. Exit.")
-			return 
+			return ConversationHandler.END
 		context.user_data["cron"] = cron
 		await update.message.reply_text("What message will be sent?")
 		return self.ASK_MESSAGE
@@ -73,8 +75,10 @@ class Actions:
 		self.fh.save_user_yaml(user_id, data)
 
 		self.sch.add_job(user_id, name, cron, self.scheduled_send, msg)
+		self.log.print(msg=f"Actions::sub_ask_message New task [{name}] added.", level=0)
 
 		await update.message.reply_text(f"Task added: {name}")
+
 		return ConversationHandler.END
 	## ================================
 
@@ -126,8 +130,10 @@ class Actions:
 		self.fh.save_user_yaml(user_id, data)
 
 		self.sch.remove_job(user_id, name)
+		self.log.print(msg=f"Actions::sub_del_select Task [{name}] deleted.", level=0)
 
 		await query.edit_message_text(f"Task deleted: {name}")
+		
 		return ConversationHandler.END
 	## ================================
 
@@ -163,6 +169,7 @@ class Actions:
 		self.fh.save_user_yaml(user_id, data)
 
 		self.sch.add_job(user_id, name, task["cron"], self.scheduled_send, task["msg"])
+		self.log.print(msg=f"Actions::sub_turnon_select Task [{name}] enabled.", level=0)
 
 		await query.edit_message_text(f"Task enabled: {name}")
 		return ConversationHandler.END
@@ -200,6 +207,7 @@ class Actions:
 		self.fh.save_user_yaml(user_id, data)
 
 		self.sch.remove_job(user_id, name)
+		self.log.print(msg=f"Actions::sub_turnoff_select Task [{name}] disabled.", level=0)
 
 		await query.edit_message_text(f"Task disabled: {name}")
 		return ConversationHandler.END
