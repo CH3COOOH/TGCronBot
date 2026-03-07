@@ -33,6 +33,7 @@ class Actions:
 			self.log.print(msg="Actions::scheduled_send Timeout. Retry for once...", level=3, write=True)
 			await asyncio.sleep(1.5)
 			await self.bot.send_message(chat_id=user_id, text=message)
+		self.log.print(msg=f"Actions::scheduled_send Message for [{user_id}] was sent.", level=1)
 
 	async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		if self.ALLOWED_USERS != None and (update.effective_user.id not in self.ALLOWED_USERS):
