@@ -1,4 +1,6 @@
 token: YOUR_BOT_TOKEN
+storage: TASK_STORAGE_DIR
+timezone: "Asia/Tokyo"
 allowed:
   - ALLOWED_USER_ID
   - OR_SET_AS_EMPTY(ALLOW ALL)
