@@ -33,14 +33,14 @@ def validate_cron(expr: str) -> bool:
 	return False
 
 class Scheduler:
-	def __init__(self):
-		self.timezone = "Asia/Tokyo"
+	def __init__(self, timezone):
+		self.timezone = timezone
 		self.scheduler = None
 
 	def __parse_cron(self, expr: str, tz: str):
 		parts = expr.split()
 		if len(parts) == 5:
-			return CronTrigger.from_crontab(expr)
+			return CronTrigger.from_crontab(expr, timezone=timezone(tz))
 		elif len(parts) == 6:
 			year, minute, hour, day, month, weekday = parts
 			return CronTrigger(
@@ -54,9 +54,6 @@ class Scheduler:
 			)
 		else:
 			raise ValueError("** CRON length must be 5 or 6")
-	
-	def set_timezone(self, tz):
-		self.timezone = tz
 
 	def check_timezone_format(self, s: str):
 		if s in all_timezones:
@@ -74,8 +71,11 @@ class Scheduler:
 		)
 		self.scheduler.start()
 
-	def add_job(self, user_id, name, cron_expr, callback, message):
-		trigger = self.__parse_cron(cron_expr, self.timezone)
+	def add_job(self, user_id, name, cron_expr, callback, message, timezone=None):
+		if timezone == None:
+			trigger = self.__parse_cron(cron_expr, self.timezone)
+		else:
+			trigger = self.__parse_cron(cron_expr, timezone)
 		self.scheduler.add_job(
 			callback,
 			trigger,

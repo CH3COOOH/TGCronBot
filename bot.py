@@ -19,8 +19,7 @@ def main():
 	log.print('FileHandler ready.')
 	log.print(fh.conf, level=0)
 
-	sch = Scheduler()
-	sch.set_timezone(fh.get_timezone())
+	sch = Scheduler(fh.get_timezone())
 	sch.run()
 	log.print('Scheduler launched.')
 

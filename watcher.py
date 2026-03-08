@@ -5,6 +5,7 @@ from watchdog.events import FileSystemEventHandler
 from scheduler import Scheduler
 from localfile import FileHandler
 from logger import Log
+from messager import scheduled_send
 from const import *
 
 class YAMLHandler(FileSystemEventHandler):
@@ -14,14 +15,13 @@ class YAMLHandler(FileSystemEventHandler):
 		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
 	
 	async def __scheduled_send(self, user_id, message):
-		bot = Bot(self.fh.get_token())
-		await bot.send_message(chat_id=user_id, text=message) # type: ignore
+		await scheduled_send(user_id, message, self.fh, self.log)
 
 	def __reload_user_jobs(self, user_id):
 		data = self.fh.load_user_yaml(user_id)
 		for name, info in data[KEY_USER_TASKS].items():
 			if info.get("enabled", True):
-				self.sch.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"])
+				self.sch.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
 			else:
 				self.sch.remove_job(user_id, name)
 		self.log.print(msg=f"User profile [{user_id}] reloaded.", level=1)

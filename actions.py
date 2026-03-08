@@ -3,11 +3,11 @@ from telegram import (
 	Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 )
 from telegram.ext import ContextTypes, ConversationHandler
-from telegram.error import TimedOut
 
 from localfile import FileHandler
 from scheduler import validate_cron, Scheduler
 from logger import Log
+from messager import scheduled_send
 from const import *
 
 class Actions:
@@ -25,20 +25,12 @@ class Actions:
 		self.ALLOWED_USERS = self.fh.get_allowed_users()
 		self.bot = Bot(self.fh.get_token())
 		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
-	
+
+	async def __scheduled_send(self, user_id, message):
+		await scheduled_send(user_id, message, self.fh, self.log)
+
 	def dump_token(self):
 		return self.fh.get_token()
-	
-	async def scheduled_send(self, user_id, message):
-		# data = self.fh.load_user_yaml(user_id)
-		# message = f"To {data[KEY_USER_PROFILE][KEY_PROFILE_NAME]}:\n{message}"
-		try:
-			await self.bot.send_message(chat_id=user_id, text=message)
-		except TimedOut:
-			self.log.print(msg="Actions::scheduled_send Timeout. Retry for once...", level=3, write=True)
-			await asyncio.sleep(1.5)
-			await self.bot.send_message(chat_id=user_id, text=message)
-		self.log.print(msg=f"Actions::scheduled_send Message for [{user_id}] was sent.", level=1)
 
 	async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		if self.ALLOWED_USERS != None and (update.effective_user.id not in self.ALLOWED_USERS):
@@ -109,7 +101,7 @@ class Actions:
 		data[KEY_USER_TASKS][name] = {KEY_TASKS_CRON: cron, KEY_TASKS_MSG: msg, KEY_TASKS_ENABLED: True}
 		self.fh.save_user_yaml(user_id, data)
 
-		self.sch.add_job(user_id, name, cron, self.scheduled_send, msg)
+		self.sch.add_job(user_id, name, cron, self.__scheduled_send, msg, timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
 		self.log.print(msg=f"Actions::sub_ask_message New task [{name}] added.", level=0)
 
 		await update.message.reply_text(f"Task added: {name}")
@@ -124,14 +116,15 @@ class Actions:
 		user_id = update.effective_user.id
 		data = self.fh.load_user_yaml(user_id)
 
-		if not data:
-			await update.message.reply_text("No task yet...")
-			return
+		text = f"[Your Timezone]\n\n{data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE]}\n\n"
 
-		text = "Your tasks:\n\n"
-		for name, info in data[KEY_USER_TASKS].items():
-			status = "✅" if info.get(KEY_TASKS_ENABLED, True) else "⛔"
-			text += f"# {name}\n  Time: {info[KEY_TASKS_CRON]}\n  Status: {status}\n  Message: {info[KEY_TASKS_MSG]}\n\n"
+		text += "[Your Tasks]\n\n"
+		if not data[KEY_USER_TASKS]:
+			text += "No task yet..."
+		else:
+			for name, info in data[KEY_USER_TASKS].items():
+				status = "✅" if info.get(KEY_TASKS_ENABLED, True) else "⛔"
+				text += f"# {name}\n  Time: {info[KEY_TASKS_CRON]}\n  Status: {status}\n  Message: {info[KEY_TASKS_MSG]}\n\n"
 
 		await update.message.reply_text(text)
 	## ================================
@@ -203,7 +196,7 @@ class Actions:
 		task[KEY_TASKS_ENABLED] = True
 		self.fh.save_user_yaml(user_id, data)
 
-		self.sch.add_job(user_id, name, task[KEY_TASKS_CRON], self.scheduled_send, task[KEY_TASKS_MSG])
+		self.sch.add_job(user_id, name, task[KEY_TASKS_CRON], self.__scheduled_send, task[KEY_TASKS_MSG], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
 		self.log.print(msg=f"Actions::sub_turnon_select Task [{name}] enabled.", level=0)
 
 		await query.edit_message_text(f"Task enabled: {name}")
