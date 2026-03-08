@@ -5,6 +5,7 @@ from watchdog.events import FileSystemEventHandler
 from scheduler import Scheduler
 from localfile import FileHandler
 from logger import Log
+from const import *
 
 class YAMLHandler(FileSystemEventHandler):
 	def __init__(self, fh: FileHandler, sch: Scheduler):
@@ -18,7 +19,7 @@ class YAMLHandler(FileSystemEventHandler):
 
 	def __reload_user_jobs(self, user_id):
 		data = self.fh.load_user_yaml(user_id)
-		for name, info in data.items():
+		for name, info in data[KEY_USER_TASKS].items():
 			if info.get("enabled", True):
 				self.sch.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"])
 			else:

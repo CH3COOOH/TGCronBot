@@ -8,17 +8,20 @@ from telegram.error import TimedOut
 from localfile import FileHandler
 from scheduler import validate_cron, Scheduler
 from logger import Log
+from const import *
 
 class Actions:
 	def __init__(self, fh: FileHandler, sch: Scheduler):
 		self.fh = fh
 		self.sch = sch
-		self.ASK_NAME = 0
-		self.ASK_CRON = 1
-		self.ASK_MESSAGE = 2
-		self.DEL_SELECT = 10
-		self.TURN_SELECT_ON = 20
-		self.TURN_SELECT_OFF = 21
+		self.ASK_USER = 0
+		self.ASK_TZ = 1
+		self.ASK_NAME = 10
+		self.ASK_CRON = 11
+		self.ASK_MESSAGE = 12
+		self.DEL_SELECT = 20
+		self.TURN_SELECT_ON = 30
+		self.TURN_SELECT_OFF = 31
 		self.ALLOWED_USERS = self.fh.get_allowed_users()
 		self.bot = Bot(self.fh.get_token())
 		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
@@ -27,6 +30,8 @@ class Actions:
 		return self.fh.get_token()
 	
 	async def scheduled_send(self, user_id, message):
+		# data = self.fh.load_user_yaml(user_id)
+		# message = f"To {data[KEY_USER_PROFILE][KEY_PROFILE_NAME]}:\n{message}"
 		try:
 			await self.bot.send_message(chat_id=user_id, text=message)
 		except TimedOut:
@@ -43,6 +48,35 @@ class Actions:
 		await update.message.reply_text(
 			"Hi~👋🏻 This is YUI, your time & task assistant !",
 		)
+
+	async def user_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+		await update.message.reply_text("Hi, how should I call you:")
+		return self.ASK_USER
+	
+	async def sub_ask_user(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+		user_id = update.effective_user.id
+		user_name = update.message.text.strip()
+		data = self.fh.load_user_yaml(user_id)
+		data[KEY_USER_PROFILE][KEY_PROFILE_NAME] = user_name
+		self.fh.save_user_yaml(user_id, data)
+		await update.message.reply_text(f"Roger that, {user_name} !")
+		return ConversationHandler.END
+
+	async def tz_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+		await update.message.reply_text("Set a new timezone:")
+		return self.ASK_TZ
+	
+	async def sub_ask_tz(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+		user_id = update.effective_user.id
+		input_tz = update.message.text.strip()
+		if self.sch.check_timezone_format(input_tz) == True:
+			data = self.fh.load_user_yaml(user_id)
+			data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE] = input_tz
+			self.fh.save_user_yaml(user_id, data)
+			await update.message.reply_text(f"OK, switch to new timezone: [{input_tz}].")
+		else:
+			await update.message.reply_text("** Bad timezone pattern. Exit.")
+		return ConversationHandler.END
 
 	## ================================
 	## Actions for /add a new task
@@ -61,18 +95,18 @@ class Actions:
 		if not validate_cron(cron):
 			await update.message.reply_text("** Bad time pattern. Exit.")
 			return ConversationHandler.END
-		context.user_data["cron"] = cron
+		context.user_data[KEY_TASKS_CRON] = cron
 		await update.message.reply_text("What message will be sent?")
 		return self.ASK_MESSAGE
 
 	async def sub_ask_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		user_id = update.effective_user.id
 		name = context.user_data["task_name"]
-		cron = context.user_data["cron"]
+		cron = context.user_data[KEY_TASKS_CRON]
 		msg = update.message.text
 
 		data = self.fh.load_user_yaml(user_id)
-		data[name] = {"cron": cron, "msg": msg, "enabled": True}
+		data[KEY_USER_TASKS][name] = {KEY_TASKS_CRON: cron, KEY_TASKS_MSG: msg, KEY_TASKS_ENABLED: True}
 		self.fh.save_user_yaml(user_id, data)
 
 		self.sch.add_job(user_id, name, cron, self.scheduled_send, msg)
@@ -95,9 +129,9 @@ class Actions:
 			return
 
 		text = "Your tasks:\n\n"
-		for name, info in data.items():
-			status = "✅" if info.get("enabled", True) else "⛔"
-			text += f"# {name}\n  Time: {info['cron']}\n  Status: {status}\n  Message: {info['msg']}\n\n"
+		for name, info in data[KEY_USER_TASKS].items():
+			status = "✅" if info.get(KEY_TASKS_ENABLED, True) else "⛔"
+			text += f"# {name}\n  Time: {info[KEY_TASKS_CRON]}\n  Status: {status}\n  Message: {info[KEY_TASKS_MSG]}\n\n"
 
 		await update.message.reply_text(text)
 	## ================================
@@ -112,7 +146,7 @@ class Actions:
 			await update.message.reply_text("Nothing can be deleted...")
 			return ConversationHandler.END
 
-		keyboard = [[InlineKeyboardButton(name, callback_data=name)] for name in data.keys()]
+		keyboard = [[InlineKeyboardButton(name, callback_data=name)] for name in data[KEY_USER_TASKS].keys()]
 		await update.message.reply_text(
 			"Choose a task to delete:",
 			reply_markup=InlineKeyboardMarkup(keyboard)
@@ -127,7 +161,7 @@ class Actions:
 		name = query.data
 
 		data = self.fh.load_user_yaml(user_id)
-		data.pop(name, None)
+		data[KEY_USER_TASKS].pop(name, None)
 		self.fh.save_user_yaml(user_id, data)
 
 		self.sch.remove_job(user_id, name)
@@ -144,7 +178,7 @@ class Actions:
 		user_id = update.effective_user.id
 		data = self.fh.load_user_yaml(user_id)
 
-		off_tasks = [name for name, info in data.items() if not info.get("enabled", True)]
+		off_tasks = [name for name, info in data[KEY_USER_TASKS].items() if not info.get(KEY_TASKS_ENABLED, True)]
 		if not off_tasks:
 			await update.message.reply_text("No tasks are disabled.")
 			return ConversationHandler.END
@@ -164,12 +198,12 @@ class Actions:
 		name = query.data
 
 		data = self.fh.load_user_yaml(user_id)
-		task = data[name]
+		task = data[KEY_USER_TASKS][name]
 
-		task["enabled"] = True
+		task[KEY_TASKS_ENABLED] = True
 		self.fh.save_user_yaml(user_id, data)
 
-		self.sch.add_job(user_id, name, task["cron"], self.scheduled_send, task["msg"])
+		self.sch.add_job(user_id, name, task[KEY_TASKS_CRON], self.scheduled_send, task[KEY_TASKS_MSG])
 		self.log.print(msg=f"Actions::sub_turnon_select Task [{name}] enabled.", level=0)
 
 		await query.edit_message_text(f"Task enabled: {name}")
@@ -182,7 +216,7 @@ class Actions:
 		user_id = update.effective_user.id
 		data = self.fh.load_user_yaml(user_id)
 
-		on_tasks = [name for name, info in data.items() if info.get("enabled", True)]
+		on_tasks = [name for name, info in data[KEY_USER_TASKS].items() if info.get(KEY_TASKS_ENABLED, True)]
 		if not on_tasks:
 			await update.message.reply_text("No tasks are enabled.")
 			return ConversationHandler.END
@@ -202,9 +236,9 @@ class Actions:
 		name = query.data
 
 		data = self.fh.load_user_yaml(user_id)
-		task = data[name]
+		task = data[KEY_USER_TASKS][name]
 
-		task["enabled"] = False
+		task[KEY_TASKS_ENABLED] = False
 		self.fh.save_user_yaml(user_id, data)
 
 		self.sch.remove_job(user_id, name)

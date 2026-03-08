@@ -1,7 +1,7 @@
 import re
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from pytz import timezone
+from pytz import timezone, all_timezones
 
 CRON_ALLOWED_PATTERN = re.compile(r'^[0-9\*\-,\/\? ]+$')
 
@@ -57,6 +57,12 @@ class Scheduler:
 	
 	def set_timezone(self, tz):
 		self.timezone = tz
+
+	def check_timezone_format(self, s: str):
+		if s in all_timezones:
+			return True
+		else:
+			return False
 
 	def run(self):
 		self.scheduler = AsyncIOScheduler(

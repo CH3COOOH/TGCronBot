@@ -13,6 +13,26 @@ class Conversation:
 		## Recover tasks from config file
 		self.app.job_queue.run_once(lambda *_: asyncio.create_task(action.restore_jobs(self.app)), 0)
 	
+	def __init_conv_user(self):
+		return ConversationHandler(
+			entry_points=[CommandHandler("user", self.action.user_cmd)],
+			states={
+				self.action.ASK_USER: [MessageHandler(filters.TEXT, self.action.sub_ask_user)]
+			},
+			fallbacks=[],
+			allow_reentry=True
+		)
+
+	def __init_conv_tz(self):
+		return ConversationHandler(
+			entry_points=[CommandHandler("timezone", self.action.tz_cmd)],
+			states={
+				self.action.ASK_TZ: [MessageHandler(filters.TEXT, self.action.sub_ask_tz)]
+			},
+			fallbacks=[],
+			allow_reentry=True
+		)
+
 	def __init_conv_add(self):
 		return ConversationHandler(
 			entry_points=[CommandHandler("add", self.action.add_cmd)],
@@ -56,6 +76,8 @@ class Conversation:
 		self.app.add_handler(self.__init_conv_del())
 		self.app.add_handler(self.__init_conv_turnon())
 		self.app.add_handler(self.__init_conv_turnoff())
+		self.app.add_handler(self.__init_conv_user())
+		self.app.add_handler(self.__init_conv_tz())
 		
 	def run_handler(self):
 		self.app.run_polling()

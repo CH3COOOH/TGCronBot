@@ -1,0 +1,8 @@
+KEY_USER_PROFILE = 'profile'
+KEY_USER_TASKS = 'tasks'
+KEY_PROFILE_NAME = 'user'
+KEY_PROFILE_TIMEZONE = 'timezone'
+KEY_TASKS_NAME = 'name'
+KEY_TASKS_CRON = 'cron'
+KEY_TASKS_ENABLED = 'enabled'
+KEY_TASKS_MSG = 'msg'

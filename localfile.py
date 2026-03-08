@@ -3,6 +3,7 @@ import os
 import sys
 
 from logger import Log
+from const import *
 
 class FileHandler:
 	def __init__(self, pthConf):
@@ -21,7 +22,13 @@ class FileHandler:
 	def load_user_yaml(self, user_id):
 		path = f"{self.PATH_STORAGE_DIR}/{user_id}.yaml"
 		if not os.path.exists(path):
-			return {}
+			return {
+				KEY_USER_PROFILE: {
+					KEY_PROFILE_NAME: '',
+					KEY_PROFILE_TIMEZONE: self.get_timezone()
+				},
+				KEY_USER_TASKS: {}
+			}
 		with open(path, "r", encoding="utf-8") as f:
 			return yaml.safe_load(f) or {}
 		self.log.print(msg=f"User profile [{user_id}] loaded.", level=0, write=True)
