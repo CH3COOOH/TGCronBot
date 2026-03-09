@@ -5,6 +5,27 @@ import sys
 from logger import Log
 from const import *
 
+def user_profile_checker(profile: dict) -> bool:
+	'''
+	<Correct profile>
+	profile:
+	timezone:
+	user:
+	tasks:
+	<name>:
+		cron:
+		enabled:
+		msg:
+	'''
+	if set([KEY_USER_PROFILE, KEY_USER_TASKS]).issubset(profile.keys()) == False:
+		return False
+	if set([KEY_PROFILE_NAME, KEY_PROFILE_TIMEZONE]).issubset(profile[KEY_USER_PROFILE].keys()) == False:
+		return False
+	for task_name, task_info in profile[KEY_USER_TASKS].items():
+		if set([KEY_TASKS_CRON, KEY_TASKS_ENABLED, KEY_TASKS_MSG]).issubset(task_info.keys()) == False:
+			return False
+	return True
+
 class FileHandler:
 	def __init__(self, pthConf):
 		self.PATH_CONF = pthConf
