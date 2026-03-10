@@ -1,3 +1,6 @@
+## This module is abandoned...T_T
+## Wish one day we can meet again.
+'''
 import os
 from telegram import Bot
 from watchdog.observers import Observer
@@ -37,3 +40,4 @@ def start_watcher(fh: FileHandler, sch: Scheduler):
 	observer = Observer()
 	observer.schedule(YAMLHandler(fh, sch), path=fh.PATH_STORAGE_DIR, recursive=False)
 	observer.start()
+'''

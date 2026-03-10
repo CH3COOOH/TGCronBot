@@ -29,16 +29,20 @@ class Actions:
 	async def __scheduled_send(self, user_id, message):
 		await send_text(user_id, message, self.fh, self.log)
 
-	def __reload_user_jobs(self, user_id):
+	def __reload_user_jobs(self, user_id) -> int:
 		self.log.print(f"Purge user [{user_id}] jobs...", 2)
 		self.sch.purge_job(user_id)
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			## Bad YAML
+			return -1
 		for name, info in data[KEY_USER_TASKS].items():
 			if info.get("enabled", True):
 				self.sch.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
 			else:
 				self.sch.remove_job(user_id, name)
 		self.log.print(msg=f"User profile [{user_id}] reloaded.", level=1)
+		return 0
 
 	def dump_token(self):
 		return self.fh.get_token()
@@ -48,9 +52,7 @@ class Actions:
 			print(f"** Block user: [{update.effective_user.id}]")
 			return
 		print(f"User [{update.effective_user.id}] start.")
-		await update.message.reply_text(
-			"Hi~👋🏻 This is YUI, your time & task assistant !",
-		)
+		await update.message.reply_text("Hi~👋🏻 This is YUI, your time & task assistant !")
 
 	async def user_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		await update.message.reply_text("Hi, how should I call you:")
@@ -60,6 +62,9 @@ class Actions:
 		user_id = update.effective_user.id
 		user_name = update.message.text.strip()
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 		data[KEY_USER_PROFILE][KEY_PROFILE_NAME] = user_name
 		self.fh.save_user_yaml(user_id, data)
 		await update.message.reply_text(f"Roger that, {user_name} !")
@@ -74,6 +79,9 @@ class Actions:
 		input_tz = update.message.text.strip()
 		if self.sch.check_timezone_format(input_tz) == True:
 			data = self.fh.load_user_yaml(user_id)
+			if data == {}:
+				await update.message.reply_text(PROMPT_BAD_PROFILE)
+				return ConversationHandler.END
 			data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE] = input_tz
 			self.fh.save_user_yaml(user_id, data)
 			await update.message.reply_text(f"OK, switch to new timezone: [{input_tz}].")
@@ -109,6 +117,9 @@ class Actions:
 		msg = update.message.text
 
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 		data[KEY_USER_TASKS][name] = {KEY_TASKS_CRON: cron, KEY_TASKS_MSG: msg, KEY_TASKS_ENABLED: True}
 		self.fh.save_user_yaml(user_id, data)
 
@@ -126,6 +137,9 @@ class Actions:
 	async def list_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		user_id = update.effective_user.id
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 
 		text = f"[Your Timezone]\n\n{data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE]}\n\n"
 
@@ -138,6 +152,7 @@ class Actions:
 				text += f"# {name}\n  Time: {info[KEY_TASKS_CRON]}\n  Status: {status}\n  Message: {info[KEY_TASKS_MSG]}\n\n"
 
 		await update.message.reply_text(text)
+		return ConversationHandler.END
 	## ================================
 
 	## ================================
@@ -165,6 +180,9 @@ class Actions:
 		name = query.data
 
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 		data[KEY_USER_TASKS].pop(name, None)
 		self.fh.save_user_yaml(user_id, data)
 
@@ -181,6 +199,9 @@ class Actions:
 	async def turnon_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		user_id = update.effective_user.id
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 
 		off_tasks = [name for name, info in data[KEY_USER_TASKS].items() if not info.get(KEY_TASKS_ENABLED, True)]
 		if not off_tasks:
@@ -202,6 +223,9 @@ class Actions:
 		name = query.data
 
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 		task = data[KEY_USER_TASKS][name]
 
 		task[KEY_TASKS_ENABLED] = True
@@ -219,6 +243,9 @@ class Actions:
 	async def turnoff_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		user_id = update.effective_user.id
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 
 		on_tasks = [name for name, info in data[KEY_USER_TASKS].items() if info.get(KEY_TASKS_ENABLED, True)]
 		if not on_tasks:
@@ -240,6 +267,9 @@ class Actions:
 		name = query.data
 
 		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 		task = data[KEY_USER_TASKS][name]
 
 		task[KEY_TASKS_ENABLED] = False
@@ -255,10 +285,13 @@ class Actions:
 	## ================================
 	# /hotplug
 	async def hotplug_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-		if self.fh.get_hotplug == False:
+		if self.fh.get_hotplug() == False:
 			await update.message.reply_text('🙇 Sorry, this function is forbidden by my master...')
+			return ConversationHandler.END
 		user_id = update.effective_user.id
-		self.__reload_user_jobs(user_id)
+		if self.__reload_user_jobs(user_id) == -1:
+			await update.message.reply_text(PROMPT_BAD_PROFILE)
+			return ConversationHandler.END
 		await update.message.reply_text('🔄 User profile is reloaded.')
 		return ConversationHandler.END
 	## ================================

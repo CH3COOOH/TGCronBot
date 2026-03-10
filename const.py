@@ -6,3 +6,5 @@ KEY_TASKS_NAME = 'name'
 KEY_TASKS_CRON = 'cron'
 KEY_TASKS_ENABLED = 'enabled'
 KEY_TASKS_MSG = 'msg'
+
+PROMPT_BAD_PROFILE = '😨 Oops! User profile reload failed... Check it soon!'

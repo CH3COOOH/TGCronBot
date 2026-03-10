@@ -2,6 +2,8 @@ import re
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from pytz import timezone, all_timezones
+from const import *
+from logger import Log
 
 CRON_ALLOWED_PATTERN = re.compile(r'^[0-9\*\-,\/\? ]+$')
 
@@ -36,6 +38,7 @@ class Scheduler:
 	def __init__(self, timezone):
 		self.timezone = timezone
 		self.scheduler = None
+		self.log = Log()
 
 	def __parse_cron(self, expr: str, tz: str):
 		parts = expr.split()
@@ -97,3 +100,17 @@ class Scheduler:
 			if job.id.startswith(prefix):
 				self.scheduler.remove_job(job.id)
 
+	# def reload_job_from_profile(self, user_id, fh) -> int:
+	# 	self.log.print(f"Purge user [{user_id}] jobs...", 2)
+	# 	self.purge_job(user_id)
+	# 	data = fh.load_user_yaml(user_id)
+	# 	if data == {}:
+	# 		## Bad YAML
+	# 		return -1
+	# 	for name, info in data[KEY_USER_TASKS].items():
+	# 		if info.get("enabled", True):
+	# 			self.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
+	# 		else:
+	# 			self.remove_job(user_id, name)
+	# 	self.log.print(msg=f"Scheduler::User profile [{user_id}] reloaded.", level=1)
+	# 	return 0

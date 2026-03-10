@@ -40,8 +40,9 @@ class FileHandler:
 		with open(self.PATH_CONF, "r", encoding="utf-8") as f:
 			return yaml.safe_load(f)
 		
-	def load_user_yaml(self, user_id):
+	def load_user_yaml(self, user_id) -> dict:
 		path = f"{self.PATH_STORAGE_DIR}/{user_id}.yaml"
+		d_profile = None
 		if not os.path.exists(path):
 			return {
 				KEY_USER_PROFILE: {
@@ -51,15 +52,24 @@ class FileHandler:
 				KEY_USER_TASKS: {}
 			}
 		with open(path, "r", encoding="utf-8") as f:
-			return yaml.safe_load(f) or {}
-		self.log.print(msg=f"User profile [{user_id}] loaded.", level=0, write=True)
+			try:
+				d_profile = yaml.safe_load(f) or {}
+			except yaml.YAMLError as e:
+				## YAML parse error
+				self.log.print(f"** Unable to parse YAML: {path}", 3)
+				return {}
+		if user_profile_checker(d_profile) == False:
+			self.log.print(f"** User profile format error: {path}", 3)
+			return {}
+		self.log.print(msg=f"User profile [{user_id}] loaded.", level=0)
+		return d_profile
 
 	def save_user_yaml(self, user_id, data):
 		os.makedirs(self.PATH_STORAGE_DIR, exist_ok=True)
 		path = f"{self.PATH_STORAGE_DIR}/{user_id}.yaml"
 		with open(path, "w", encoding="utf-8") as f:
 			yaml.safe_dump(data, f, allow_unicode=True)
-		self.log.print(msg=f"Write into user profile [{user_id}].", level=0, write=True)
+		self.log.print(msg=f"Write into user profile [{user_id}].", level=0)
 
 	def get_allowed_users(self):
 		return self.conf['allowed']

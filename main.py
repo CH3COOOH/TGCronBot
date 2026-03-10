@@ -5,7 +5,7 @@ from localfile import FileHandler
 from scheduler import Scheduler
 from conversation import Conversation
 from logger import Log
-import watcher
+# import watcher
 
 def main():
 
