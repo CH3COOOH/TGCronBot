@@ -29,6 +29,17 @@ class Actions:
 	async def __scheduled_send(self, user_id, message):
 		await send_text(user_id, message, self.fh, self.log)
 
+	def __reload_user_jobs(self, user_id):
+		self.log.print(f"Purge user [{user_id}] jobs...", 2)
+		self.sch.purge_job(user_id)
+		data = self.fh.load_user_yaml(user_id)
+		for name, info in data[KEY_USER_TASKS].items():
+			if info.get("enabled", True):
+				self.sch.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
+			else:
+				self.sch.remove_job(user_id, name)
+		self.log.print(msg=f"User profile [{user_id}] reloaded.", level=1)
+
 	def dump_token(self):
 		return self.fh.get_token()
 
@@ -238,5 +249,16 @@ class Actions:
 		self.log.print(msg=f"Actions::sub_turnoff_select Task [{name}] disabled.", level=0)
 
 		await query.edit_message_text(f"Task disabled: {name}")
+		return ConversationHandler.END
+	## ================================
+
+	## ================================
+	# /hotplug
+	async def hotplug_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+		if self.fh.get_hotplug == False:
+			await update.message.reply_text('🙇 Sorry, this function is forbidden by my master...')
+		user_id = update.effective_user.id
+		self.__reload_user_jobs(user_id)
+		await update.message.reply_text('🔄 User profile is reloaded.')
 		return ConversationHandler.END
 	## ================================

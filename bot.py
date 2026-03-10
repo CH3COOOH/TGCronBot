@@ -24,8 +24,8 @@ def main():
 	log.print('Scheduler launched.')
 
 	## Monitor YAML file changes in storage directory
-	watcher.start_watcher(fh, sch)
-	log.print('Storage monitor launched.')
+	# watcher.start_watcher(fh, sch)
+	# log.print('Storage monitor launched.')
 
 	action = Actions(fh, sch)
 	log.print('Action ready. Start Conversation...')

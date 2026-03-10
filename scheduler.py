@@ -91,4 +91,9 @@ class Scheduler:
 		except:
 			pass
 	
+	def purge_job(self, user_id):
+		prefix = f"{user_id}_"
+		for job in self.scheduler.get_jobs():
+			if job.id.startswith(prefix):
+				self.scheduler.remove_job(job.id)
 

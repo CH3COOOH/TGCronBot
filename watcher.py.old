@@ -13,7 +13,7 @@ class YAMLHandler(FileSystemEventHandler):
 		self.fh = fh
 		self.sch = sch
 		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
-	
+
 	async def __scheduled_send(self, user_id, message):
 		await send_text(user_id, message, self.fh, self.log)
 

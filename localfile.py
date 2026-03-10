@@ -45,7 +45,7 @@ class FileHandler:
 		if not os.path.exists(path):
 			return {
 				KEY_USER_PROFILE: {
-					KEY_PROFILE_NAME: '',
+					KEY_PROFILE_NAME: 'Dear Master',
 					KEY_PROFILE_TIMEZONE: self.get_timezone()
 				},
 				KEY_USER_TASKS: {}
@@ -75,4 +75,7 @@ class FileHandler:
 
 	def get_loglevel(self):
 		return self.conf['loglevel']
+	
+	def get_hotplug(self):
+		return self.conf['hotplug_enabled']
 

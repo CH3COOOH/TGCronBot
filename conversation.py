@@ -72,12 +72,14 @@ class Conversation:
 	def init_handler(self):
 		self.app.add_handler(CommandHandler("start", self.action.start))
 		self.app.add_handler(CommandHandler("list", self.action.list_cmd))
+		self.app.add_handler(CommandHandler("hotplug", self.action.hotplug_cmd))
+		self.app.add_handler(self.__init_conv_user())
+		self.app.add_handler(self.__init_conv_tz())
 		self.app.add_handler(self.__init_conv_add())
 		self.app.add_handler(self.__init_conv_del())
 		self.app.add_handler(self.__init_conv_turnon())
 		self.app.add_handler(self.__init_conv_turnoff())
-		self.app.add_handler(self.__init_conv_user())
-		self.app.add_handler(self.__init_conv_tz())
+
 		
 	def run_handler(self):
 		self.app.run_polling()

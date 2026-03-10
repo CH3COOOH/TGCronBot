@@ -7,7 +7,7 @@ from const import *
 async def send_text(user_id: int, message: str, fh: FileHandler, log: Log):
 	bot = Bot(fh.get_token())
 	data = fh.load_user_yaml(user_id)
-	message = f"To {data[KEY_USER_PROFILE][KEY_PROFILE_NAME]}:\n{message}"
+	message = f"To: {data[KEY_USER_PROFILE][KEY_PROFILE_NAME]}\n{message}"
 	try:
 		await bot.send_message(chat_id=user_id, text=message)
 	except TimedOut:
