@@ -5,7 +5,7 @@ from watchdog.events import FileSystemEventHandler
 from scheduler import Scheduler
 from localfile import FileHandler
 from logger import Log
-from messager import scheduled_send
+from messager import send_text
 from const import *
 
 class YAMLHandler(FileSystemEventHandler):
@@ -15,7 +15,7 @@ class YAMLHandler(FileSystemEventHandler):
 		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
 	
 	async def __scheduled_send(self, user_id, message):
-		await scheduled_send(user_id, message, self.fh, self.log)
+		await send_text(user_id, message, self.fh, self.log)
 
 	def __reload_user_jobs(self, user_id):
 		data = self.fh.load_user_yaml(user_id)

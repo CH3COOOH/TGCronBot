@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from localfile import FileHandler
 from scheduler import validate_cron, Scheduler
 from logger import Log
-from messager import scheduled_send
+from messager import send_text
 from const import *
 
 class Actions:
@@ -27,7 +27,7 @@ class Actions:
 		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
 
 	async def __scheduled_send(self, user_id, message):
-		await scheduled_send(user_id, message, self.fh, self.log)
+		await send_text(user_id, message, self.fh, self.log)
 
 	def dump_token(self):
 		return self.fh.get_token()

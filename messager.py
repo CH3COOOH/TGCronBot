@@ -4,7 +4,7 @@ from localfile import FileHandler
 from logger import Log
 from const import *
 
-async def scheduled_send(user_id: int, message: str, fh: FileHandler, log: Log):
+async def send_text(user_id: int, message: str, fh: FileHandler, log: Log):
 	bot = Bot(fh.get_token())
 	data = fh.load_user_yaml(user_id)
 	message = f"To {data[KEY_USER_PROFILE][KEY_PROFILE_NAME]}:\n{message}"
