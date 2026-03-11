@@ -25,7 +25,9 @@ def main():
 
 	sch = Scheduler(fh, msg_handler)
 	sch.run()
-	sch.reload_all_jobs()
+	if sch.reload_all_jobs() == -1:
+		log.print('** Failed to load user profiles. Exit.', level=3, write=True)
+		sys.exit(1)
 	log.print('Scheduler launched.')
 
 	action = Actions(fh, sch, msg_handler)

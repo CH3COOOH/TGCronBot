@@ -44,7 +44,7 @@ class Scheduler:
 		self.fh = fh
 		self.timezone = fh.get_timezone()
 		self.msgr = msg_handler
-		self.log = Log()
+		self.log = Log(fh.get_loglevel())
 		self.scheduler = None
 
 	def __parse_cron(self, expr: str, tz: str):
@@ -82,17 +82,22 @@ class Scheduler:
 		self.scheduler.start()
 
 	def add_job(self, user_id, name, cron_expr, callback, message, timezone=None):
-		if timezone == None:
-			trigger = self.__parse_cron(cron_expr, self.timezone)
-		else:
-			trigger = self.__parse_cron(cron_expr, timezone)
-		self.scheduler.add_job(
-			callback,
-			trigger,
-			args=[user_id, message],
-			id=f"{user_id}_{name}",
-			replace_existing=True
-		)
+		try:
+			if timezone == None:
+				trigger = self.__parse_cron(cron_expr, self.timezone)
+			else:
+				trigger = self.__parse_cron(cron_expr, timezone)
+			self.scheduler.add_job(
+				callback,
+				trigger,
+				args=[user_id, message],
+				id=f"{user_id}_{name}",
+				replace_existing=True
+			)
+			return 0
+		except Exception as e:
+			self.log.print(f"** Failed to add job for [{user_id}]: {str(e)}", 3)
+			return -1
 
 	def remove_job(self, user_id, name):
 		job_id = f"{user_id}_{name}"
@@ -117,7 +122,8 @@ class Scheduler:
 			return -1
 		for name, info in data[KEY_USER_TASKS].items():
 			if info.get("enabled", True):
-				self.add_job(user_id, name, info["cron"], self.msgr.send_text, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
+				if self.add_job(user_id, name, info["cron"], self.msgr.send_text, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE]) == -1:
+					return -1
 			else:
 				self.remove_job(user_id, name)
 		self.log.print(msg=f"User profile [{user_id}] reloaded.", level=1)
