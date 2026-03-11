@@ -7,11 +7,11 @@ from telegram.ext import ContextTypes, ConversationHandler
 from localfile import FileHandler
 from scheduler import validate_cron, Scheduler
 from logger import Log
-from messager import send_text
+from messager import MsgHandler
 from const import *
 
 class Actions:
-	def __init__(self, fh: FileHandler, sch: Scheduler):
+	def __init__(self, fh: FileHandler, sch: Scheduler, msg_handler: MsgHandler):
 		self.fh = fh
 		self.sch = sch
 		self.ASK_USER = 0
@@ -23,26 +23,8 @@ class Actions:
 		self.TURN_SELECT_ON = 30
 		self.TURN_SELECT_OFF = 31
 		self.ALLOWED_USERS = self.fh.get_allowed_users()
-		self.bot = Bot(self.fh.get_token())
+		self.msgr = msg_handler
 		self.log = Log(show_level=fh.get_loglevel(), logfile=fh.get_logfile())
-
-	async def __scheduled_send(self, user_id, message):
-		await send_text(user_id, message, self.fh, self.log)
-
-	def __reload_user_jobs(self, user_id) -> int:
-		self.log.print(f"Purge user [{user_id}] jobs...", 2)
-		self.sch.purge_job(user_id)
-		data = self.fh.load_user_yaml(user_id)
-		if data == {}:
-			## Bad YAML
-			return -1
-		for name, info in data[KEY_USER_TASKS].items():
-			if info.get("enabled", True):
-				self.sch.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
-			else:
-				self.sch.remove_job(user_id, name)
-		self.log.print(msg=f"User profile [{user_id}] reloaded.", level=1)
-		return 0
 
 	def dump_token(self):
 		return self.fh.get_token()
@@ -52,7 +34,7 @@ class Actions:
 			print(f"** Block user: [{update.effective_user.id}]")
 			return
 		print(f"User [{update.effective_user.id}] start.")
-		await update.message.reply_text("Hi~👋🏻 This is YUI, your time & task assistant !")
+		await update.message.reply_text("Hi~👋🏻 This is YUI, your time & task assistant!")
 
 	async def user_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		await update.message.reply_text("Hi, how should I call you:")
@@ -86,7 +68,7 @@ class Actions:
 			self.fh.save_user_yaml(user_id, data)
 			await update.message.reply_text(f"OK, switch to new timezone: [{input_tz}].")
 		else:
-			await update.message.reply_text("** Bad timezone pattern. Exit.")
+			await update.message.reply_text(PROMPT_BAD_TIMEZONE)
 		return ConversationHandler.END
 
 	## ================================
@@ -123,7 +105,7 @@ class Actions:
 		data[KEY_USER_TASKS][name] = {KEY_TASKS_CRON: cron, KEY_TASKS_MSG: msg, KEY_TASKS_ENABLED: True}
 		self.fh.save_user_yaml(user_id, data)
 
-		self.sch.add_job(user_id, name, cron, self.__scheduled_send, msg, timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
+		self.sch.add_job(user_id, name, cron, self.msgr.send_text, msg, timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
 		self.log.print(msg=f"Actions::sub_ask_message New task [{name}] added.", level=0)
 
 		await update.message.reply_text(f"Task added: {name}")
@@ -231,7 +213,7 @@ class Actions:
 		task[KEY_TASKS_ENABLED] = True
 		self.fh.save_user_yaml(user_id, data)
 
-		self.sch.add_job(user_id, name, task[KEY_TASKS_CRON], self.__scheduled_send, task[KEY_TASKS_MSG], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
+		self.sch.add_job(user_id, name, task[KEY_TASKS_CRON], self.msgr.send_text, task[KEY_TASKS_MSG], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
 		self.log.print(msg=f"Actions::sub_turnon_select Task [{name}] enabled.", level=0)
 
 		await query.edit_message_text(f"Task enabled: {name}")
@@ -289,7 +271,7 @@ class Actions:
 			await update.message.reply_text('🙇 Sorry, this function is forbidden by my master...')
 			return ConversationHandler.END
 		user_id = update.effective_user.id
-		if self.__reload_user_jobs(user_id) == -1:
+		if self.sch.reload_user_jobs(user_id) == -1:
 			await update.message.reply_text(PROMPT_BAD_PROFILE)
 			return ConversationHandler.END
 		await update.message.reply_text('🔄 User profile is reloaded.')

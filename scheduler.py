@@ -4,10 +4,15 @@ from apscheduler.triggers.cron import CronTrigger
 from pytz import timezone, all_timezones
 from const import *
 from logger import Log
+from messager import MsgHandler
+from localfile import FileHandler
 
 CRON_ALLOWED_PATTERN = re.compile(r'^[0-9\*\-,\/\? ]+$')
 
 def validate_cron(expr: str) -> bool:
+
+	## Please add more exception handler, such as 12:114514
+
 	expr = expr.strip()
 	if not CRON_ALLOWED_PATTERN.match(expr):
 		return False
@@ -35,10 +40,12 @@ def validate_cron(expr: str) -> bool:
 	return False
 
 class Scheduler:
-	def __init__(self, timezone):
-		self.timezone = timezone
-		self.scheduler = None
+	def __init__(self, fh: FileHandler, msg_handler: MsgHandler):
+		self.fh = fh
+		self.timezone = fh.get_timezone()
+		self.msgr = msg_handler
 		self.log = Log()
+		self.scheduler = None
 
 	def __parse_cron(self, expr: str, tz: str):
 		parts = expr.split()
@@ -100,17 +107,27 @@ class Scheduler:
 			if job.id.startswith(prefix):
 				self.scheduler.remove_job(job.id)
 
-	# def reload_job_from_profile(self, user_id, fh) -> int:
-	# 	self.log.print(f"Purge user [{user_id}] jobs...", 2)
-	# 	self.purge_job(user_id)
-	# 	data = fh.load_user_yaml(user_id)
-	# 	if data == {}:
-	# 		## Bad YAML
-	# 		return -1
-	# 	for name, info in data[KEY_USER_TASKS].items():
-	# 		if info.get("enabled", True):
-	# 			self.add_job(user_id, name, info["cron"], self.__scheduled_send, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
-	# 		else:
-	# 			self.remove_job(user_id, name)
-	# 	self.log.print(msg=f"Scheduler::User profile [{user_id}] reloaded.", level=1)
-	# 	return 0
+	def reload_user_jobs(self, user_id, isPurge=True) -> int:
+		if isPurge == True:
+			self.log.print(f"Purge user [{user_id}] jobs...", 2)
+			self.purge_job(user_id)
+		data = self.fh.load_user_yaml(user_id)
+		if data == {}:
+			## Bad YAML
+			return -1
+		for name, info in data[KEY_USER_TASKS].items():
+			if info.get("enabled", True):
+				self.add_job(user_id, name, info["cron"], self.msgr.send_text, info["msg"], timezone=data[KEY_USER_PROFILE][KEY_PROFILE_TIMEZONE])
+			else:
+				self.remove_job(user_id, name)
+		self.log.print(msg=f"User profile [{user_id}] reloaded.", level=1)
+		return 0
+
+	def reload_all_jobs(self) -> int:
+		self.log.print('Reload jobs from all users...')
+		uids = self.fh.get_id_list()
+		for uid in uids:
+			print(f" -> {uid}")
+			if self.reload_user_jobs(uid, isPurge=False) == -1:
+				return -1
+		return 0

@@ -5,6 +5,7 @@ from localfile import FileHandler
 from scheduler import Scheduler
 from conversation import Conversation
 from logger import Log
+from messager import MsgHandler
 # import watcher
 
 def main():
@@ -19,15 +20,15 @@ def main():
 	log.print('FileHandler ready.')
 	log.print(fh.conf, level=0)
 
-	sch = Scheduler(fh.get_timezone())
+	msg_handler = MsgHandler(fh)
+	log.print('MsgHandler ready.')
+
+	sch = Scheduler(fh, msg_handler)
 	sch.run()
+	sch.reload_all_jobs()
 	log.print('Scheduler launched.')
 
-	## Monitor YAML file changes in storage directory
-	# watcher.start_watcher(fh, sch)
-	# log.print('Storage monitor launched.')
-
-	action = Actions(fh, sch)
+	action = Actions(fh, sch, msg_handler)
 	log.print('Action ready. Start Conversation...')
 
 	conv = Conversation(action)

@@ -8,3 +8,4 @@ KEY_TASKS_ENABLED = 'enabled'
 KEY_TASKS_MSG = 'msg'
 
 PROMPT_BAD_PROFILE = '😨 Oops! User profile reload failed... Check it soon!'
+PROMPT_BAD_TIMEZONE = '😨 This area is not supported... Does it exist on earth?'

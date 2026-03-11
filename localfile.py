@@ -71,6 +71,14 @@ class FileHandler:
 			yaml.safe_dump(data, f, allow_unicode=True)
 		self.log.print(msg=f"Write into user profile [{user_id}].", level=0)
 
+	def get_id_list(self):
+		id_list = []
+		for fname in os.listdir(self.PATH_STORAGE_DIR):
+			basename, ext = os.path.splitext(fname)
+			if ext.lower() in ['.yaml', '.yml']:
+				id_list.append(basename)
+		return id_list
+
 	def get_allowed_users(self):
 		return self.conf['allowed']
 	
@@ -89,3 +97,9 @@ class FileHandler:
 	def get_hotplug(self):
 		return self.conf['hotplug_enabled']
 
+def test():
+	f = FileHandler('config.yaml')
+	print(f.get_id_list())
+
+if __name__ == '__main__':
+	test()
