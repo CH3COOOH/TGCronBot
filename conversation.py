@@ -82,4 +82,9 @@ class Conversation:
 
 		
 	def run_handler(self):
-		self.app.run_polling()
+		try:
+			self.app.run_polling(close_loop=False)
+			return 0
+		except Exception as e:
+			print(e)
+			return -1

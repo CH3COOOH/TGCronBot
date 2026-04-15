@@ -1,4 +1,5 @@
 import sys
+import time
 
 from actions import Actions
 from localfile import FileHandler
@@ -35,7 +36,9 @@ def main():
 
 	conv = Conversation(action)
 	conv.init_handler()
-	conv.run_handler()
+	while True:
+		if conv.run_handler() == -1:
+			time.sleep(10)
 
 if __name__ == "__main__":
 	main()
